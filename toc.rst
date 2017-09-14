@@ -1,5 +1,5 @@
-Reproducible Research Workshop: Table of Contents
-==================================================
+Table of Contents
+=================
 
 Contents:
 
@@ -25,5 +25,4 @@ Contents:
 Indices and tables
 ==================
 
-* :ref:`genindex`
 * :ref:`search`

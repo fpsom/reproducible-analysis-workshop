@@ -2,16 +2,14 @@
 Jupyter notebook demo
 ======================
 
-.. index:: analysis
-
 `Jupyter <http://jupyter.org/>`__ notebook is an interactive web application that allows you to type and edit lines of code and see the output. The software requires Python installation, but currently supports interaction with over 40 languages. 
 
-`Jupyter notebook examples <https://github.com/ipython/ipython/wiki/A-gallery-of-interesting-IPython-Notebooks>`__ 
+`Jupyter notebook examples <https://github.com/ipython/ipython/wiki/A-gallery-of-interesting-IPython-Notebooks>`__
 
 Installation:
 =============
 
-`Jupyter install instructions <http://jupyter.readthedocs.io/en/latest/install.html>`__ 
+`Jupyter install instructions <http://jupyter.readthedocs.io/en/latest/install.html>`__
 
 First we will install Anaconda, a package manager for Python libraries.
 
@@ -19,7 +17,7 @@ Install on AWS, or other UNIX machiens:
 ::
   curl -OL https://3230d63b5fc54e62148e-c95ac804525aac4b6dba79b00b39d1d3.ssl.cf1.rackcdn.com/Anaconda2-2.4.0-Linux-x86_64.sh
   bash Anaconda2-2.4.0-Linux-x86_64.sh
-  
+
 Install on Mac OS X:
 ::
   curl -OL http://repo.continuum.io/archive/Anaconda2-4.1.1-MacOSX-x86_64.sh
@@ -32,8 +30,8 @@ After Anaconda install has finished, type:
   source ~/.bashrc
   conda install jupyter
   conda install -c r r r-essentials
-  
-This will install packages allowing you to open either a new Python .ipynb or an R .ipynb. 
+
+This will install packages allowing you to open either a new Python .ipynb or an R .ipynb.
 
 Navigate to the directory on your computer with files you want to explore. Then type:
 ::
@@ -48,7 +46,7 @@ See here for additional tutorial materials:
 http://dib-training.readthedocs.io/en/pub/2016-03-09-jupyter-notebook.html
 
 mybinder: https://github.com/ngs-docs/2016-mar-jupyter
-  
+
 If you are running windows or have problems on Mac, try these `remote instructions <https://github.com/WhiteheadLab/Computational_Protocols/blob/master/install_jupyter_notebook_farm.md>`__. Start an AWS (does not have to be big, try Ubuntu 14.04 t2.micro). Login and install packages:
 ::
   sudo apt-get update && \
@@ -60,7 +58,7 @@ If you are running windows or have problems on Mac, try these `remote instructio
   conda install jupyter
   conda install -c r r r-essentials
   source ~/.bashrc
-  
+
 Clone the repo:
 ::
   git clone https://github.com/ljcohen/ngs2016_important_files.git
@@ -99,7 +97,7 @@ For more instructions, the Help menu has a good tour and detailed information. N
 
 References for learning Python
 =============================
-* http://rosalind.info/problems/locations/ 
-* http://learnpythonthehardway.org/book/ 
+* http://rosalind.info/problems/locations/
+* http://learnpythonthehardway.org/book/
 * http://www.learnpython.org/
 * http://www.pythontutor.com/visualize.html#mode=edit
