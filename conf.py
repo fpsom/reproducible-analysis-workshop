@@ -29,7 +29,7 @@ import guzzle_sphinx_theme
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.mathjax', 'guzzle_sphinx_theme', 'sphinx.ext.autodoc']
+extensions = ['sphinx.ext.mathjax', 'guzzle_sphinx_theme', 'sphinx.ext.autodoc', 'sphinxcontrib.disqus']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -187,10 +187,10 @@ htmlhelp_basename = 'fpsom'
 ##
 # Various settings to pass to templates:
 
-# html_context = {
-#   "google_analytics_id" : 'UA-53464733-1',
-#   "disqus_shortname" : 'angus-ctb',
-#}
+html_context = {
+   "google_analytics_id" : 'UA-17296390-8',
+   "disqus_shortname" : 'fotisepsomopoulos'
+}
 
 
 # -- Options for LaTeX output ---------------------------------------------
