@@ -8,8 +8,6 @@ Contents:
    :glob:
    :titlesonly:
 
-   README
-
    the_osf
 
    Jupyter-Notebook-Notes.md
