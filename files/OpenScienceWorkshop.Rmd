@@ -1,0 +1,199 @@
+---
+title: "Reproducible analysis and Research Transparency"
+subtitle: "`RMarkdown` in RStudio and `knitr`"
+author: "Fotis Psomopoulos"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    toc: true
+    # theme: united
+  word_document: default
+---
+
+# Introduction
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook for the analysis of the [bird ringing data Netherlands 1960-1990 part 1, led by  Henk van der Jeugd](https://doi.org/10.17026/dans-2ch-6s6r).
+
+In an R notebook we can combine text, code and data together. The text is formated using [Markdown](), whereas data and code are located within ` ```{r}``` `blocks.
+
+An R Notebook can rely on external libraries. The following block adds the required `knitr` library, as well as some additional ones for data wrangling the calculation of indices.
+
+```{r "Setup Libraries", message=FALSE, warning=FALSE, echo=TRUE}
+library(knitr)
+
+# Data Analysis Libraries
+library(dplyr)
+library(tidyr)
+
+# [Community Ecology Package](https://cran.r-project.org/web/packages/vegan/index.html)
+library(vegan)
+
+# Visualization Libraries
+library(ggplot2)
+
+```
+
+This next block sets the global options with which each code block is evaluated.
+
+```{r "Set Knitr options", echo=TRUE, cache=FALSE}
+options(width=80)
+
+opts_chunk$set(comment = "", warning = FALSE, message = FALSE, echo = TRUE, tidy = TRUE, size="small")
+
+knitr::opts_chunk$set(dev = 'png')
+```
+
+# Loading and Cleaning Data
+
+For our first step, we will load the data and then view the top records as well as a summary of all variables included.
+
+```{r "Loading data"}
+dansDataSet <- read.csv(file = "files/Export_DANS_Parels_van_Datasets_Vogeltrekstation.csv", header = TRUE)
+
+head(dansDataSet)
+summary(dansDataSet)
+```
+
+We observe that even though the data was loaded correctly, they are not used in the best possible way. For example, `Ringnumber`, `CatchDate` and `Age` are used as words rather than as numeric values. Also, missing values are defined as `NULL` which is not recognized as such by R (the correct value would be `NA`). The next block tidies the data, so that that each attribute is treated as originally intended.
+
+
+```{r "Cleaning data"}
+dansDataSet <- data.frame(lapply(dansDataSet, function(x) { gsub("NULL", NA, x) }))
+
+dansDataSet$Ringnumber <- as.numeric(dansDataSet$Ringnumber)
+dansDataSet$CatchDate <- as.Date(dansDataSet$CatchDate)
+dansDataSet$Age <- as.numeric(dansDataSet$Age)
+dansDataSet$Broodsize <- as.numeric(dansDataSet$Broodsize)
+dansDataSet$PullusAge <- as.numeric(dansDataSet$PullusAge)
+
+
+head(dansDataSet)
+summary(dansDataSet)
+```
+
+We can see that the data is much more better formatted and useful for further analysis.
+
+# Subsetting our data
+
+Let's now create two distinct subsets of the original data. Subset #1 `dansDataSet_Kennemerduinen` will contain all the records for which `Own.location.description` is `Kennemerduinen`. Then we will group the records by species and catch date, and calculate the average age per species.
+
+```{r "Creating subset #1: Only entries for Kennemerduinen"}
+dansDataSet_Kennemerduinen <- dansDataSet %>%
+  filter(Own.location.description == "Kennemerduinen") %>%
+  group_by(Species, CatchDate) %>%
+  summarise(Age.Avg = mean(Age))
+
+
+# spread(data, key, value)
+#   data: A data frame
+#   key: The (unquoted) name of the column whose values will be used as column headings.
+#   value:The (unquoted) names of the column whose values will populate the cells
+dansDataSet_Kennemerduinen_matrix <- dansDataSet_Kennemerduinen %>%
+  spread(CatchDate, Age.Avg)
+
+```
+
+Our second subset will create a matrix of the distribution of species across the different locations. This will consequently allow us to calculate some diversity indexes.
+
+```{r "Creating subset #2: Species by location"}
+dansDataSet_distribution <- dansDataSet %>%
+  na.omit() %>%
+  group_by(Species, Location) %>%
+  summarise(count = n())
+
+dansDataSet_distribution_matrix <- dansDataSet_distribution %>%
+  spread(Location, count)
+```
+
+# Using the `vegan` package
+
+We will now use the [`vegan`](https://cran.r-project.org/web/packages/vegan/index.html) package to calculate the diversity in the locations.
+
+## Transforming the data to `vegan` requirements
+
+```{r "Transforming data for using in the `vegan` functions"}
+dansDataSet_distribution_zero <- dansDataSet_distribution_matrix
+dansDataSet_distribution_zero[is.na(dansDataSet_distribution_zero)] <- 0
+dansDataSet_distribution_zero <- t(dansDataSet_distribution_zero[,2:8])
+```
+
+## Calculating diversity: **Shannon**, **Simpson** and **Inverted Simpson**.
+
+For each of these indexes, we are going to call the corresponding function from vegan, using the default parameters:
+
+Shannon or Shannon–Weaver (or Shannon–Wiener) index is defined as:
+
+$$H = -\sum_{n=1}^{R} p_i ln_b(p_i) = 1$$
+
+where $p_i$ is the proportional abundance of species $i$ and $b$ is the base of the logarithm. It is most popular to use natural logarithms, but some argue for base $b = 2$.
+
+Both variants of Simpson's index are based on $D = \sum_{n=1}^{R}p_i^2$. Choice simpson returns $1-D$ and invsimpson returns $\frac{1}{D}$.
+
+```{r "Calculate diversity for three indexes: Shannon, Simpson and Inverted Simpson"}
+Hshannon <- diversity(dansDataSet_distribution_zero, index = "shannon", MARGIN = 1, base = exp(1))
+simp <- diversity(dansDataSet_distribution_zero, "simpson", MARGIN = 1)
+invsimp <- diversity(dansDataSet_distribution_zero, "inv", MARGIN = 1)
+```
+
+
+## Calculating species richness
+
+The function `rarefy` gives the expected species richness in random subsamples of size sample from the community. The size of sample should be smaller than total community size, but the function will silently work for larger sample as well and return non-rarefied species richness (and standard error equal to 0). If sample is a vector, `rarefaction` is performed for each sample size separately. Rarefaction can be performed only with genuine counts of individuals. The function rarefy is based on Hurlbert's (1971) formulation, and the standard errors on Heck et al. (1975).
+
+```{r "Calculate expected species richness"}
+r.2 <- rarefy(dansDataSet_distribution_zero, 2)
+```
+
+## Calculating `fisher.alpha`
+
+This function estimates the $a$ parameter of Fisher's logarithmic series. The estimation is possible only for genuine counts of individuals. The function can optionally return standard errors of $a$. These should be regarded only as rough indicators of the accuracy: the confidence limits of $a$ are strongly non-symmetric and the standard errors cannot be used in Normal inference.
+
+```{r "Calculate α parameter of Fisher's logarithmic series"}
+alpha <- fisher.alpha(dansDataSet_distribution_zero)
+```
+
+## Richness and Evenness
+
+Species **richness** (S) is calculated by `specnumber` which finds the number of species. If MARGIN is set to 2, it finds frequencies of species. **Pielou's evenness** (J) is calculated by $\frac{H_shannon}{log(S)}$.
+
+```{r "Calculate Richness and Evenness"}
+## Species richness (S) and Pielou's evenness (J):
+S <- specnumber(dansDataSet_distribution_zero, MARGIN = 1) ## rowSums(BCI > 0) does the same...
+J <- Hshannon/log(S)
+```
+
+# Results
+
+Finally, let's also create some plots. First of all, let's create a plot based on our first subset, showing for each species and capture dates, the average age of the species captured.
+
+``` {r "First subset plot"}
+
+png("files/figs/subset1.png", width = 4000, height = 2000, res = 300, pointsize = 5)
+ggplot(data=dansDataSet_Kennemerduinen, aes(x=CatchDate, y=Species, color=Age.Avg)) + geom_point(aes(size=Age.Avg))
+dev.off()
+```
+![_First subset plot_](files/figs/subset1.png)
+
+We can also create a plot based on the second subset. In this case, let's see how the distribution of species across the seven locations looks like.
+
+```{r "Second subset plot"}
+png("files/figs/subset2.png", width = 4000, height = 2000, res = 300, pointsize = 5)
+ggplot(data=dansDataSet_distribution, aes(x=Species, y=Location, color=Species)) + geom_point(aes(size=count)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+dev.off()
+```
+![_Second subset plot_](files/figs/subset2.png)
+
+
+Finally, let's have a figure showing all 5 indexes together - and this time around, we'll print directly to the R Notebook (and not to another `png` file).
+
+``` {r "Plot of all metrics"}
+pairs(cbind(Hshannon, simp, invsimp, r.2, alpha), pch="+", col="blue")
+```
+
+# Conclusions
+
+R Markdown is awesome!
+
+
