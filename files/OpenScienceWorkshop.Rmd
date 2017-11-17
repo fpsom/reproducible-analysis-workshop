@@ -67,7 +67,7 @@ dansDataSet$CatchDate <- as.Date(dansDataSet$CatchDate)
 dansDataSet$Age <- as.numeric(dansDataSet$Age)
 dansDataSet$Broodsize <- as.numeric(dansDataSet$Broodsize)
 dansDataSet$PullusAge <- as.numeric(dansDataSet$PullusAge)
-
+dansDataSet$CatchDate <- as.Date(dansDataSet$CatchDate)
 
 head(dansDataSet)
 summary(dansDataSet)
@@ -77,35 +77,57 @@ We can see that the data is much more better formatted and useful for further an
 
 # Subsetting our data
 
-Let's now create two distinct subsets of the original data. Subset #1 `dansDataSet_Kennemerduinen` will contain all the records for which `Own.location.description` is `Kennemerduinen`. Then we will group the records by species and catch date, and calculate the average age per species.
+Let's now create a few subsets of the original data. Subset #1 `dansDataSet_Castricum` will contain all the unique records for which `Location` is `Castricum, Noord-Holland, NL`. Then we will group the records by species and catch date, and calculate number of each species in the particular catch date.
 
-```{r "Creating subset #1: Only entries for Kennemerduinen"}
-dansDataSet_Kennemerduinen <- dansDataSet %>%
-  filter(Own.location.description == "Kennemerduinen") %>%
+```{r "Creating subset #1a: Only entries for Castricum, Noord-Holland, NL"}
+dansDataSet_Castricum <- dansDataSet %>%
+  filter(Location == "Castricum, Noord-Holland, NL") %>%
+  select(unique.RingID = RingID, Species, CatchDate) %>%
   group_by(Species, CatchDate) %>%
-  summarise(Age.Avg = mean(Age))
+  summarise(count = n())
+```
 
+We could further filter this subset for a particular species. For example, the code below will retrieve all unique observations of Northern Lapwing in Castricum, Noord-Holland, NL.
+
+```{r "Creating subset #1b: Northern Lapwing observations in Castricum"}
+dansDataSet_lapwing <- dansDataSet %>%
+  filter(Location == "Castricum, Noord-Holland, NL") %>%
+  select(unique.RingID = RingID, Species, CatchDate) %>%
+  group_by(Species, CatchDate) %>%
+  filter(as.POSIXct(CatchDate) >= as.POSIXct("1970-01-01 00:00:01")) %>%
+  filter(Species == "Northern Lapwing") %>%
+  summarise(count = n())
+```
+
+Our second subset will create a matrix of the distribution of unique species across the different locations. This will consequently allow us to calculate some diversity indexes.
+
+```{r "Creating subset #2a: Species by location"}
+dansDataSet_distribution <- dansDataSet %>%
+  select(unique.RingID = RingID, Species, Location) %>%
+  group_by(Species, Location) %>%
+  summarise(count = n()) %>%
+  filter(count > 0) %>%
+  na.omit()
 
 # spread(data, key, value)
 #   data: A data frame
 #   key: The (unquoted) name of the column whose values will be used as column headings.
 #   value:The (unquoted) names of the column whose values will populate the cells
-dansDataSet_Kennemerduinen_matrix <- dansDataSet_Kennemerduinen %>%
-  spread(CatchDate, Age.Avg)
-
-```
-
-Our second subset will create a matrix of the distribution of species across the different locations. This will consequently allow us to calculate some diversity indexes.
-
-```{r "Creating subset #2: Species by location"}
-dansDataSet_distribution <- dansDataSet %>%
-  na.omit() %>%
-  group_by(Species, Location) %>%
-  summarise(count = n())
-
 dansDataSet_distribution_matrix <- dansDataSet_distribution %>%
   spread(Location, count)
 ```
+
+We can also create a more specific subset, i.e. of species that have at least 100 unique observations in a given location. This will allow for a cleaner figure.
+
+```{r "Creating subset #2b: Species by location (at least 100 members)"}
+dansDataSet_distribution_min100 <- dansDataSet %>%
+  select(unique.RingID = RingID, Species, Location) %>%
+  group_by(Species, Location) %>%
+  summarise(count = n()) %>%
+  filter(count > 100) %>%
+  na.omit()
+```
+
 
 # Using the `vegan` package
 
@@ -116,7 +138,8 @@ We will now use the [`vegan`](https://cran.r-project.org/web/packages/vegan/inde
 ```{r "Transforming data for using in the `vegan` functions"}
 dansDataSet_distribution_zero <- dansDataSet_distribution_matrix
 dansDataSet_distribution_zero[is.na(dansDataSet_distribution_zero)] <- 0
-dansDataSet_distribution_zero <- t(dansDataSet_distribution_zero[,2:8])
+dansDataSet_distribution_zero <- t(dansDataSet_distribution_zero[,2:length(dansDataSet_distribution_zero)])
+
 ```
 
 ## Calculating diversity: **Shannon**, **Simpson** and **Inverted Simpson**.
@@ -164,32 +187,111 @@ S <- specnumber(dansDataSet_distribution_zero, MARGIN = 1) ## rowSums(BCI > 0) d
 J <- Hshannon/log(S)
 ```
 
+In order to have all these indeces together, we will put them in a single data frame as follows:
+
+```{r "Structuring the metrics"} 
+metrics <- data.frame(
+  H_Shannon = Hshannon,
+  H_Simp = simp,
+  H_Inv_Simp = invsimp,
+  rarefy = r.2,
+  a = alpha,
+  richness = S,
+  evenness = J
+)
+```
+
+
 # Results
 
 Finally, let's also create some plots. First of all, let's create a plot based on our first subset, showing for each species and capture dates, the average age of the species captured.
 
-``` {r "First subset plot"}
+``` {r "First subset plot: as points"}
 
-png("files/figs/subset1.png", width = 4000, height = 2000, res = 300, pointsize = 5)
-ggplot(data=dansDataSet_Kennemerduinen, aes(x=CatchDate, y=Species, color=Age.Avg)) + geom_point(aes(size=Age.Avg))
+png("files/figs/subset1a1.png", width = 4000, height = 2000, res = 300, pointsize = 5)
+ggplot(data=dansDataSet_Castricum, aes(x=CatchDate, y=Species, color=count)) +
+  geom_point(aes(size=count))
 dev.off()
 ```
-![_First subset plot_](files/figs/subset1.png)
+![_First subset plot: points_](files/figs/subset1a1.png)
+
+
+``` {r "First subset plot: as lines"}
+
+png("files/figs/subset1a2.png", width = 4000, height = 2000, res = 300, pointsize = 5)
+ggplot(data=dansDataSet_Castricum, aes(x=CatchDate, y=count, colour=Species)) +
+  geom_line()
+dev.off()
+```
+![_First subset plot: lines_](files/figs/subset1a2.png)
+
+We can do the same plots for the single species that we looked into earlier (Northern Lapwing in Castricum, Noord-Holland, NL).
+
+```{r "First subset plot: Northern Lapwing points"}
+png("files/figs/subset1b1.png", width = 4000, height = 2000, res = 300, pointsize = 5)
+ggplot(data=dansDataSet_lapwing, aes(x=CatchDate, y=Species, color=count)) +
+  geom_point(aes(size=count))
+dev.off()
+```
+![_First subset plot: Northern Lapwin points_](files/figs/subset1b1.png)
+
+This is not really easy to interpret. However, we can now have a more interesting plot with the `lines` command, including a smoothing curve to show the overall trend:
+
+```{r "First subset plot: Northern Lapwing lines"}
+png("files/figs/subset1b2.png", width = 4000, height = 2000, res = 300, pointsize = 5)
+ggplot(data=dansDataSet_lapwing, aes(x=CatchDate, y=count, colour=Species)) +
+  geom_point(aes(x = CatchDate, y = count, colour = Species), size = 3) +
+  stat_smooth(aes(x = CatchDate, y = count), method = "lm", formula = y ~ poly(x, 3), se = FALSE)
+dev.off()
+```
+![_First subset plot: Northern Lapwin lines](files/figs/subset1b2.png)
+
 
 We can also create a plot based on the second subset. In this case, let's see how the distribution of species across the seven locations looks like.
 
-```{r "Second subset plot"}
-png("files/figs/subset2.png", width = 4000, height = 2000, res = 300, pointsize = 5)
-ggplot(data=dansDataSet_distribution, aes(x=Species, y=Location, color=Species)) + geom_point(aes(size=count)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```{r "Second subset plot: full"}
+lvls <- unique(as.vector(dansDataSet_distribution$Location))
+png("files/figs/subset2a.png", width = 4000, height = 2000, res = 300, pointsize = 5)
+ggplot(data=dansDataSet_distribution, aes(x=Species, y=Location, color=Species)) + 
+  geom_point(aes(size=count)) +
+  theme(text=element_text(family="Arial", size=12*(81/169)),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.3)) +
+    scale_y_discrete(breaks=lvls[seq(1,length(lvls),by=10)]) #scale_y_discrete(labels = abbreviate)
 dev.off()
 ```
-![_Second subset plot_](files/figs/subset2.png)
+![_Second subset plot_](files/figs/subset2a.png)
+
+This is a very "dense" figure, so let's use the filtered version to see the most highly populated species.
 
 
-Finally, let's have a figure showing all 5 indexes together - and this time around, we'll print directly to the R Notebook (and not to another `png` file).
+```{r "Second subset plot: most populated species"}
+png("files/figs/subset2b.png", width = 4000, height = 2000, res = 300, pointsize = 5)
+ggplot(data=dansDataSet_distribution_min100, aes(x=Species, y=Location, color=Species)) + 
+  geom_point(aes(size=count)) +
+  theme(text=element_text(family="Arial", size=12*(81/169)),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.3))
+dev.off()
+```
+![_Second subset plot_](files/figs/subset2b.png)
+
+
+Finally, let's have a figure showing all 5 indexes together.
 
 ``` {r "Plot of all metrics"}
-pairs(cbind(Hshannon, simp, invsimp, r.2, alpha), pch="+", col="blue")
+png("files/figs/metrics.png", width = 4000, height = 2000, res = 300, pointsize = 5)
+plot(metrics, pch="+", col="blue")
+dev.off()
+```
+![_Second subset plot_](files/figs/metrics.png)
+
+We could also show the most diverse sites (i.e. richness index over 10).
+``` {r "Show top most diverse ssites"}
+top10_site_metrics <- metrics %>%
+  tibble::rownames_to_column() %>%
+  filter(richness >= 10) %>%
+  arrange(desc(richness))
+
+top10_site_metrics
 ```
 
 # Conclusions
