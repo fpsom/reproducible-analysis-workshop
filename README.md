@@ -51,3 +51,8 @@ _Venue_
 The workshop will take place at the Amsterdam Science Park, building CWI, Room Euler A.
 
 _The rendered site is available [here](http://reproducible-analysis-workshop.readthedocs.io)_
+
+## License
+
+![CC BY-SA 4.0](https://licensebuttons.net/l/by-sa/4.0/88x31.png)
+All the instruction material is made available under the [Creative Commons Attribution-ShareAlike 4.0 International license](https://creativecommons.org/licenses/by-sa/4.0). Please see [LICENSE](LICENSE.md) for more details.
